@@ -1,0 +1,47 @@
+//@version=5
+strategy("MA Cross Trading Strategy", overlay=true, initial_capital=100000, default_qty_type=strategy.percent_of_equity, default_qty_value=15)   
+
+// 参数设置
+shortPeriod = input.int(5, "短期均线周期", minval=1)
+longPeriod = input.int(10, "长期均线周期", minval=1)
+maxPosition = input.float(90, "最大仓位比例", minval=0, maxval=100)
+takeProfitPercent = input.float(15, "止盈比例", minval=0, maxval=100)
+addPositionPercent = input.float(10, "加仓跌幅", minval=0, maxval=100)
+
+// 计算指标
+maShort = ta.sma(close, shortPeriod)
+maLong = ta.sma(close, longPeriod)
+currentPosition = strategy.position_size * close / strategy.equity * 100
+
+// 获取仓位信息
+positionSize = strategy.position_size
+avgEntryPrice = strategy.position_avg_price
+
+// 计算交易条件
+buyCondition = (maShort > maLong) and (close < maShort * 1.05) and (positionSize == 0) and (currentPosition + 15 <= maxPosition)
+addPosition = (positionSize > 0) and (close < avgEntryPrice * (1 - addPositionPercent/100)) and (currentPosition + 15 <= maxPosition) and (maShort > maLong)
+sellCondition = (positionSize > 0) and (close > avgEntryPrice * (1 + takeProfitPercent/100))
+
+// 绘制均线
+plot(maShort, color=color.blue, title="MA Short")
+plot(maLong, color=color.red, title="MA Long")
+
+// 绘制交易信号
+plotshape(buyCondition, title="Buy", location=location.belowbar, color=color.green, style=shape.triangleup, size=size.normal)
+plotshape(addPosition, title="Add", location=location.belowbar, color=color.blue, style=shape.triangleup, size=size.small)
+plotshape(sellCondition, title="Sell", location=location.abovebar, color=color.red, style=shape.triangledown, size=size.normal)
+
+// 绘制价格线
+plot(positionSize > 0 ? avgEntryPrice : na, color=color.yellow, style=plot.style_linebr, linewidth=2, title="Entry")
+plot(positionSize > 0 ? avgEntryPrice * (1 + takeProfitPercent/100) : na, color=color.green, style=plot.style_linebr, linewidth=1, title="Take Profit")
+
+// 执行交易
+if buyCondition
+    strategy.entry("Buy", strategy.long)
+
+if addPosition
+    strategy.entry("Add", strategy.long)
+
+if sellCondition
+    strategy.close_all()
+
