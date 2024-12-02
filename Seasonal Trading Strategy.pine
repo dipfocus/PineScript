@@ -1,0 +1,79 @@
+// Theoretical Basis
+// 
+// Market Seasonality:
+// 
+// The concept of seasonality in financial markets refers to predictable patterns based on time, such as weekends or specific days of the week. 
+// Studies have shown that cryptocurrency markets exhibit unique trading behaviors during weekends due to reduced institutional activity and higher retail participation behavioral
+// 
+// Biases**:
+// 
+// Retail traders often dominate weekend markets, potentially causing predictable inefficiencies .
+// 
+// Reverences**
+// 
+// Baur, D. G., Hong, K., & Lee, A. D. (2018). Bitcoin: Medium of exchange or speculative assets? Journal of International Financial Markets, Institutions and Money, 54, 177–189.
+// 
+// Urquhart, A. (2016). The inefficiency of Bitcoin. Economics Letters, 148, 80–82.
+
+//@version=5
+strategy("Seasonal Trading Strategy", overlay=true, initial_capital=20000, commission_type=strategy.commission.cash_per_contract, commission_value=0.01, slippage=1)
+
+// User Input Parameters
+openDayInput = input.string("Saturday", "Open Position Day", options=["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"])
+closeDayInput = input.string("Monday", "Close Position Day", options=["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"])
+openHourInput = input.int(10, "Open Hour (EST)", minval=0, maxval=23)
+closeHourInput = input.int(10, "Close Hour (EST)", minval=0, maxval=23)
+tradeDirection = input.string("Long", "Trade Direction", options=["Long", "Short"])
+
+// Convert day string to number (1-7)
+getDayNumber(dayStr) =>
+    result = 0
+    if dayStr == "Sunday"
+        result := 1
+    else if dayStr == "Monday"
+        result := 2
+    else if dayStr == "Tuesday"
+        result := 3
+    else if dayStr == "Wednesday"
+        result := 4
+    else if dayStr == "Thursday"
+        result := 5
+    else if dayStr == "Friday"
+        result := 6
+    else if dayStr == "Saturday"
+        result := 7
+    result
+
+// Get current EST hour (UTC-5)
+getEstHour() =>
+    utcHour = hour(time, "UTC")
+    estHour = utcHour >= 5 ? utcHour - 5 : utcHour + 19
+    estHour
+
+// Trading Logic
+openDay = getDayNumber(openDayInput)
+closeDay = getDayNumber(closeDayInput)
+currentDay = dayofweek
+currentHour = getEstHour()
+
+// Entry Conditions
+longCondition = tradeDirection == "Long" and currentDay == openDay and currentHour == openHourInput
+shortCondition = tradeDirection == "Short" and currentDay == openDay and currentHour == openHourInput
+
+// Exit Condition
+exitCondition = currentDay == closeDay and currentHour == closeHourInput
+
+// Execute Trades
+if longCondition
+    strategy.entry("Long", strategy.long)
+
+if shortCondition
+    strategy.entry("Short", strategy.short)
+
+if exitCondition
+    strategy.close_all()
+
+// Plot Markers
+plotshape(longCondition, "Long Entry", shape.triangleup, location.belowbar, color.green, size=size.small)
+plotshape(shortCondition, "Short Entry", shape.triangledown, location.abovebar, color.red, size=size.small)
+plotshape(exitCondition, "Exit", shape.circle, location.belowbar, color.yellow, size=size.small)
