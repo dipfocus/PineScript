@@ -1,0 +1,61 @@
+//@version=5
+indicator("Triple Smoothed MA Signals", overlay=true)
+
+// 1. 用户输入设置
+mainLen = input.int(7, "主平滑长度", minval=1)
+signalLen = input.int(12, "信号线长度", minval=1)
+src = input(close, "数据源")
+maType1 = input.string("EMA", "主平滑线类型", options=["SMA", "EMA", "RMA", "WMA"])
+maType2 = input.string("SMA", "信号线类型", options=["SMA", "EMA", "RMA", "WMA"])
+bullColor = input.color(color.yellow, "看涨信号颜色")
+bearColor = input.color(color.fuchsia, "看跌信号颜色")
+
+// 2. 移动平均计算函数
+ma(source, length, type) =>
+    switch type
+        "SMA" => ta.sma(source, length)
+        "EMA" => ta.ema(source, length)
+        "RMA" => ta.rma(source, length)
+        "WMA" => ta.wma(source, length)
+
+// 3. 三重平滑计算
+s1 = ma(src, mainLen, maType1)
+s2 = ma(s1, mainLen, maType1)
+v1 = ma(s2, mainLen, maType1)  // 主平滑线
+v2 = ma(v1, signalLen, maType2)  // 信号线
+
+// 4. 趋势强度计算
+dist = math.abs(v2 - v1)
+highest_dist = ta.highest(dist, 50)
+ndist = dist / highest_dist  // 归一化距离
+
+// 5. 局部极值计算
+h = ta.highest(v1, 7)
+l = ta.lowest(v1, 7)
+midp = (high + low) / 2
+
+// 6. 信号生成
+buySignal = ta.crossover(v2, v1)
+sellSignal = ta.crossunder(v2, v1)
+
+// 7. 绘图
+// 主线和信号线
+p1 = plot(v1, "Triple Smoothed", color=color.new(color.blue, 100))
+p2 = plot(v2, "Signal Line", color=color.new(color.red, 100))
+
+// 区域填充
+color gradientColor = color.from_gradient(ndist, 0, 1, color.green, color.red)
+fill(p1, p2, color=color.new(gradientColor, 70))
+
+// 中点线
+plot(midp, "Mid Point", color=color.new(color.gray, 50), style=plot.style_circles)
+
+// 信号标记
+plotshape(buySignal ? l : na, "Buy Signal", style=shape.triangleup, 
+         location=location.absolute, color=bullColor, size=size.small)
+plotshape(sellSignal ? h : na, "Sell Signal", style=shape.triangledown, 
+         location=location.absolute, color=bearColor, size=size.small)
+
+// 8. 警报条件
+alertcondition(buySignal, "买入信号", "价格突破上行")
+alertcondition(sellSignal, "卖出信号", "价格突破下行")
