@@ -1,0 +1,71 @@
+//@version=5
+indicator("Custom Fibonacci Bands", overlay=true)
+
+// 1. 输入参数设置
+period = input.int(20, "SMMA Period", minval=1)
+width = input.float(1.0, "Band Width", minval=0.5, maxval=3.0, step=0.1)
+price_source = input.source(close, "Price Source")
+fib1 = input.float(1.618, "Fibonacci Ratio 1", minval=0.1)
+fib2 = input.float(2.618, "Fibonacci Ratio 2", minval=0.1)
+fib3 = input.float(4.236, "Fibonacci Ratio 3", minval=0.1)
+extend = input.int(30, "Extension Length", minval=1)
+hide_ch = input.bool(false, "Hide Fibonacci Lines")
+liq_sweep = input.bool(true, "Enable Liquidity Sweep")
+
+// 2. 计算 SMMA 和 ATR
+var float smma = na
+if na(smma)
+    smma := ta.sma(price_source, period)
+else
+    smma := (smma * (period - 1) + price_source) / period
+
+atr = ta.atr(period)
+
+// 3. 计算斐波那契带
+fib_top1 = smma + (atr * fib1 * width)
+fib_top2 = smma + (atr * fib2 * width)
+fib_top3 = smma + (atr * fib3 * width)
+
+fib_bot1 = smma - (atr * fib1 * width)
+fib_bot2 = smma - (atr * fib2 * width)
+fib_bot3 = smma - (atr * fib3 * width)
+
+// 4. 趋势判断
+trend_up = ta.crossover(price_source, fib_top1)
+trend_down = ta.crossunder(price_source, fib_bot1)
+
+// 5. 信号生成
+is_local_high = ta.highestbars(high, extend) == 0
+is_local_low = ta.lowestbars(low, extend) == 0
+
+sell_signal = trend_up and is_local_high
+buy_signal = trend_down and is_local_low
+
+// 6. 绘制图表
+// 斐波那契带
+var color no_color = color.new(#000000, 100)
+
+plot(fib_top3, "Upper Band 3", 
+     color = hide_ch ? no_color : color.new(#FF0000, 70))
+plot(fib_top2, "Upper Band 2", 
+     color = hide_ch ? no_color : color.new(#FF6B6B, 70))
+plot(fib_top1, "Upper Band 1", 
+     color = hide_ch ? no_color : color.new(#FFB6B6, 70))
+plot(smma, "SMMA", 
+     color = hide_ch ? no_color : color.new(#0066FF, 0))
+plot(fib_bot1, "Lower Band 1", 
+     color = hide_ch ? no_color : color.new(#B6FFB6, 70))
+plot(fib_bot2, "Lower Band 2", 
+     color = hide_ch ? no_color : color.new(#6BFF6B, 70))
+plot(fib_bot3, "Lower Band 3", 
+     color = hide_ch ? no_color : color.new(#00FF00, 70))
+
+// 7. 流动性扫荡检测
+sweep_up = liq_sweep ? (high > fib_top3 and close < fib_top2) : false
+sweep_down = liq_sweep ? (low < fib_bot3 and close > fib_bot2) : false
+
+// 将所有 plotchar 移到全局作用域
+plotchar(sell_signal, "Sell Signal", "∘", location.abovebar, color=color.red, size=size.tiny)
+plotchar(buy_signal, "Buy Signal", "•", location.belowbar, color=color.green, size=size.tiny)
+plotchar(sweep_up, "Sweep High", "⌄", location.abovebar, color=color.red, size=size.tiny)
+plotchar(sweep_down, "Sweep Low", "⌃", location.belowbar, color=color.green, size=size.tiny)
