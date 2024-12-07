@@ -1,0 +1,112 @@
+// This Pine Script™ "ETF-Benchmark Analyzer" compares the performance of an ETF (such as SPY, the S&P 500 ETF) against a benchmark, 
+// which can also be adjusted by the user. It provides several key financial metrics, such as:
+// 
+// Performance (%): Displays the total return over a specified lookback period (e.g., 1 year). 
+// It compares the performance of the ETF against the benchmark and shows the difference.
+// 
+// Alpha (%): Measures the excess return of the ETF over the expected return, which is calculated using the benchmark’s return. 
+// Positive alpha indicates that the ETF has outperformed the benchmark, while negative alpha suggests underperformance. 
+// This metric is important because it isolates performance that cannot be explained by exposure to the benchmark's movements.
+// 
+// Sharpe Ratio: A risk-adjusted measure of return. It is calculated by dividing the excess return of the ETF (above the risk-free rate) by its standard deviation (volatility). 
+// A higher Sharpe ratio indicates better risk-adjusted returns. The Sharpe ratio is calculated for both the ETF and the benchmark, and their difference is displayed as well.
+// 
+// Drawdown: The percentage decrease from the highest price to the lowest price over the lookback period. This is a critical measure of risk, 
+// as it shows the largest potential loss an investor might face during a specific period.
+// 
+// Beta: Measures the ETF’s sensitivity to movements in the benchmark. A beta of 1 means the ETF moves in line with the benchmark; 
+// greater than 1 means it is more volatile, while less than 1 means it is less volatile.
+// 
+
+//@version=5
+indicator("ETF-Benchmark Analyzer", shorttitle="ETF-Benchmark", overlay=true)
+
+// Inputs
+benchmark_ticker = input.symbol("SPY", title="Benchmark Symbol")  // Default Benchmark: S&P 500 (SPY)
+lookback = input.int(252, minval=30, title="Lookback Period (days)")  // Default: 1 year (252 trading days)
+
+// Symbols
+etf_ticker = syminfo.tickerid  // Current chart symbol
+etf_close = request.security(etf_ticker, timeframe.period, close)
+benchmark_close = request.security(benchmark_ticker, timeframe.period, close)
+
+// Risk-Free Rate from US10Y
+us10y_close = request.security("TVC:US10Y", timeframe.period, close)
+risk_free_rate = us10y_close / 100  // Convert to decimal form
+
+// Calculate Returns
+etf_return = math.log(etf_close / etf_close[1])
+benchmark_return = math.log(benchmark_close / benchmark_close[1])
+
+// Average Returns and Volatility
+avg_etf_return = ta.sma(etf_return, lookback)
+stddev_etf_return = ta.stdev(etf_return, lookback)
+avg_benchmark_return = ta.sma(benchmark_return, lookback)
+stddev_benchmark_return = ta.stdev(benchmark_return, lookback)
+
+// Sharpe Ratio
+sharpe_ratio_etf = stddev_etf_return != 0 ? (avg_etf_return * 252 - risk_free_rate) / stddev_etf_return : na
+sharpe_ratio_benchmark = stddev_benchmark_return != 0 ? (avg_benchmark_return * 252 - risk_free_rate) / stddev_benchmark_return : na
+sharpe_diff = sharpe_ratio_etf - sharpe_ratio_benchmark
+
+// Drawdowns
+highest_etf_close = ta.highest(etf_close, lookback)
+drawdown_etf = highest_etf_close != 0 ? (etf_close - highest_etf_close) / highest_etf_close * 100 : na
+avg_drawdown_etf = ta.sma(drawdown_etf, lookback)
+
+highest_benchmark_close = ta.highest(benchmark_close, lookback)
+drawdown_benchmark = highest_benchmark_close != 0 ? (benchmark_close - highest_benchmark_close) / highest_benchmark_close * 100 : na
+avg_drawdown_benchmark = ta.sma(drawdown_benchmark, lookback)
+avg_drawdown_diff = avg_drawdown_benchmark - avg_drawdown_etf
+
+// Alpha and Beta
+covariance = ta.sma((etf_return - avg_etf_return) * (benchmark_return - avg_benchmark_return), lookback)
+variance_benchmark = ta.sma(math.pow(benchmark_return - avg_benchmark_return, 2), lookback)
+beta = variance_benchmark != 0 ? covariance / variance_benchmark : na
+alpha = not na(beta) ? (avg_etf_return - beta * avg_benchmark_return) * 252 : na
+
+// Correlation and Performance
+correlation = ta.correlation(etf_return, benchmark_return, lookback)
+etf_performance = (etf_close / etf_close[lookback] - 1) * 100
+benchmark_performance = (benchmark_close / benchmark_close[lookback] - 1) * 100
+performance_diff = etf_performance - benchmark_performance
+
+// Create Table
+var table etf_table = table.new(position=position.top_right, columns=10, rows=10, bgcolor=color.new(color.black, 85))
+
+if bar_index > lookback
+    // Column headers
+    table.cell(etf_table, 0, 0, "Metric", bgcolor=color.rgb(50, 50, 50), text_color=color.white, text_size=size.small)
+    table.cell(etf_table, 0, 1, "Chart Asset", bgcolor=color.rgb(50, 50, 50), text_color=color.white, text_size=size.small)
+    table.cell(etf_table, 0, 2, "Benchmark", bgcolor=color.rgb(50, 50, 50), text_color=color.white, text_size=size.small)
+    table.cell(etf_table, 0, 3, "Difference", bgcolor=color.rgb(50, 50, 50), text_color=color.white, text_size=size.small)
+    
+    // Performance
+    table.cell(etf_table, 1, 0, "Performance (%)", text_color=color.white)
+    table.cell(etf_table, 1, 1, str.tostring(etf_performance, "#.##"), text_color=etf_performance >= 0 ? color.green : color.red)
+    table.cell(etf_table, 1, 2, str.tostring(benchmark_performance, "#.##"), text_color=benchmark_performance >= 0 ? color.green : color.red)
+    table.cell(etf_table, 1, 3, str.tostring(performance_diff, "#.##"), text_color=performance_diff >= 0 ? color.green : color.red)
+
+    // Alpha 
+    table.cell(etf_table, 2, 0, "Alpha (%)", text_color=color.white)
+    table.cell(etf_table, 2, 1, str.tostring(alpha, "#.##"), text_color=alpha >= 0 ? color.green : color.red)
+    table.cell(etf_table, 2, 2, "-", text_color=color.gray)
+    table.cell(etf_table, 2, 3, "-", text_color=color.gray)
+
+    // Sharpe Ratio
+    table.cell(etf_table, 3, 0, "Sharpe Ratio", text_color=color.white)
+    table.cell(etf_table, 3, 1, str.tostring(sharpe_ratio_etf, "#.##"), text_color=sharpe_ratio_etf >= 0 ? color.green : color.red)
+    table.cell(etf_table, 3, 2, str.tostring(sharpe_ratio_benchmark, "#.##"), text_color=sharpe_ratio_benchmark >= 0 ? color.green : color.red)
+    table.cell(etf_table, 3, 3, str.tostring(sharpe_diff, "#.##"), text_color=sharpe_diff >= 0 ? color.green : color.red)
+
+    // Avg Drawdown
+    table.cell(etf_table, 4, 0, "Avg Drawdown", text_color=color.white)
+    table.cell(etf_table, 4, 1, str.tostring(avg_drawdown_etf, "#.##"), text_color=avg_drawdown_etf >= 0 ? color.green : color.red)
+    table.cell(etf_table, 4, 2, str.tostring(avg_drawdown_benchmark, "#.##"), text_color=avg_drawdown_benchmark >= 0 ? color.green : color.red)
+    table.cell(etf_table, 4, 3, str.tostring(avg_drawdown_diff, "#.##"), text_color=avg_drawdown_diff >= 0 ? color.green : color.red)
+
+    // Beta
+    table.cell(etf_table, 5, 0, "Beta", text_color=color.white)
+    table.cell(etf_table, 5, 1, str.tostring(beta, "#.##"), text_color=beta >= 0 ? color.green : color.red)
+    table.cell(etf_table, 5, 2, "-", text_color=color.gray)
+    table.cell(etf_table, 5, 3, "-", text_color=color.gray)
