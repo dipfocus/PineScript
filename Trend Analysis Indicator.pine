@@ -1,0 +1,86 @@
+//@version=5
+indicator("Trend Analysis Indicator", overlay=true)
+
+// 1. Input Parameters
+var string SMA_TYPE = "SMA"
+var string EMA_TYPE = "EMA"
+var string WMA_TYPE = "WMA"
+var string VWMA_TYPE = "VWMA"
+var string HMA_TYPE = "HMA"
+var string SMMA_TYPE = "SMMA"
+var string TMA_TYPE = "TMA"
+
+maType = input.string(SMA_TYPE, "Moving Average Type", options=[SMA_TYPE, EMA_TYPE, WMA_TYPE, VWMA_TYPE, HMA_TYPE, SMMA_TYPE, TMA_TYPE])
+averagePeriod = input.int(200, "MA Period", minval=1)
+maColor = input.color(color.blue, "MA Color")
+showTable = input.bool(true, "Show Trend Table")
+positionChoice = input.string("Top Right", "Table Position", options=["Top Left", "Top Right", "Bottom Left", "Bottom Right", "Top Center", "Bottom Center"])
+tableSize = input.string("normal", "Table Size", options=["auto", "tiny", "small", "normal", "large", "huge"])
+showCandleCounter = input.bool(true, "Show Candle Counter")
+
+// 2. Moving Average Calculation
+getMa(type, src, len) =>
+    float result = 0.0
+    switch type
+        SMA_TYPE  => result := ta.sma(src, len)
+        EMA_TYPE  => result := ta.ema(src, len)
+        WMA_TYPE  => result := ta.wma(src, len)
+        VWMA_TYPE => result := ta.vwma(src, len)
+        HMA_TYPE  => result := ta.hma(src, len)
+        SMMA_TYPE => result := ta.sma(src, len)  // Simplified SMMA as SMA
+        TMA_TYPE  => result := ta.sma(ta.sma(src, len), len)  // TMA as double SMA
+    result
+
+ma = getMa(maType, close, averagePeriod)
+plot(ma, color=maColor, linewidth=2, title="Moving Average")
+
+// 3. Trend Detection
+isAbove = close > ma
+isBelow = close < ma
+
+// 4. Counter Variables
+var int aboveCount = 0
+var int belowCount = 0
+var int currentStreak = 0
+
+// Update Counters
+if isAbove
+    if not isAbove[1]
+        currentStreak := 1
+    else
+        currentStreak += 1
+    aboveCount += 1
+else if isBelow
+    if not isBelow[1]
+        currentStreak := 1
+    else
+        currentStreak += 1
+    belowCount += 1
+
+// 5. Display Candle Counter Labels
+if showCandleCounter
+    label.new(bar_index, isAbove ? high : low, str.tostring(currentStreak), color=isAbove ? color.green : color.red, style=label.style_label_down, textcolor=color.white, size=size.tiny)
+
+// 6. Calculate Probabilities
+var float upProbability = 0.0
+var float downProbability = 0.0
+
+if aboveCount + belowCount > 0
+    upProbability := math.round(aboveCount / (aboveCount + belowCount) * 100, 2)
+    downProbability := math.round(belowCount / (aboveCount + belowCount) * 100, 2)
+
+// 7. Create Table
+if showTable
+    pos = positionChoice == "Top Left" ? position.top_left : positionChoice == "Top Right" ? position.top_right : positionChoice == "Bottom Left" ? position.bottom_left : positionChoice == "Bottom Center" ? position.bottom_center : positionChoice == "Top Center" ? position.top_center : position.top_right
+    
+    var table trendTable = table.new(pos, 5, 2)
+
+    bgcolor = isAbove ? color.new(color.green, 70) : color.new(color.red, 70)
+    textcolor = color.white
+
+    table.clear(trendTable, 0, 0)
+    
+    table.cell(trendTable, 0, 0, "Current Trend", text_size=tableSize, bgcolor=bgcolor, text_color=textcolor)
+    table.cell(trendTable, 1, 0, isAbove ? "Uptrend" : "Downtrend", text_size=tableSize, bgcolor=bgcolor, text_color=textcolor)
+    table.cell(trendTable, 0, 1, "Streak Days", text_size=tableSize, bgcolor=bgcolor, text_color=textcolor)
+    table.cell(trendTable, 1, 1, str.tostring(currentStreak), text_size=tableSize, bgcolor=bgcolor, text_color=textcolor)
