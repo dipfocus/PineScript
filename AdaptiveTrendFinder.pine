@@ -79,19 +79,19 @@ string t4 = "Displays the annualized return (CAGR) of the trend over the auto-se
 sourceInput = input.source(close, title="Source")
 
 string group0 = "CHANNEL SETTINGS"
-bool   periodMode       = input.bool  (         false, "Use Long-Term Channel", group=group0, tooltip=t1)
-float  devMultiplier    = input.float (           2.0, "Deviation Multiplier:", group=group0, step=0.1)
-color  colorInput       = input.color (  color.gray,             "", group=group0, inline=group0)
-string lineStyle1       = input.string(       "Solid",             "", group=group0, inline=group0, options=["Solid", "Dotted", "Dashed"])
-string extendStyle      = input.string("Extend Right",             "", group=group0, inline=group0, options=["Extend Right", "Extend Both", "Extend None", "Extend Left"])
-int    fillTransparency = input.int   (            93, "Fill Transp:", group=group0, inline="mid", minval=0, maxval=100, step=1)
-int channelTransparency = input.int   (            40, "Line Transp:", group=group0, inline="mid", minval=0, maxval=100, step=1)
+bool   periodMode       = input.bool  (false, "Use Long-Term Channel", group=group0, tooltip=t1)
+float  devMultiplier    = input.float (2.0, "Deviation Multiplier:", group=group0, step=0.1)
+color  colorInput       = input.color (color.gray, "", group=group0, inline=group0)
+string lineStyle1       = input.string("Solid", "", group=group0, inline=group0, options=["Solid", "Dotted", "Dashed"])
+string extendStyle      = input.string("Extend Right", "", group=group0, inline=group0, options=["Extend Right", "Extend Both", "Extend None", "Extend Left"])
+int    fillTransparency = input.int   (93, "Fill Transp:", group=group0, inline="mid", minval=0, maxval=100, step=1)
+int channelTransparency = input.int   (40, "Line Transp:", group=group0, inline="mid", minval=0, maxval=100, step=1)
 
 string group1 = "MIDLINE SETTINGS"
-color  colorInputMidline       = input.color ( color.blue, "", group=group1, inline=group1)
-int    transpInput  = input.int   (     100,          "Transp:", group=group1, inline=group1, minval=0, maxval=100, step=10)
-int    lineWidth    = input.int   (       1,      "Line Width:", group=group1, inline=group1)
-string midLineStyle = input.string(               "Dashed",  "", group=group1, inline=group1, options=["Dotted", "Solid", "Dashed"])
+color  colorInputMidline = input.color ( color.blue, "", group=group1, inline=group1)
+int    transpInput  = input.int(100, "Transp:", group=group1, inline=group1, minval=0, maxval=100, step=10)
+int    lineWidth    = input.int(1,"Line Width:", group=group1, inline=group1)
+string midLineStyle = input.string("Dashed",  "", group=group1, inline=group1, options=["Dotted", "Solid", "Dashed"])
 
 string group2 = "TABLE SETTINGS"
 bool showAutoSelectedPeriod =    input(true, "Show Auto-Selected Period", group=group2, tooltip=t2)
@@ -99,7 +99,7 @@ bool showTrendStrength =         input(true, "Show Trend Strength", group=group2
 bool showPearsonInput =          input.bool(false, "Show Pearson's R", group=group2, inline="secondLine", tooltip=t3)
 bool showTrendAnnualizedReturn = input(true, "Show Trend Annualized Return", group=group2, tooltip=t4)
 string tablePositionInput =      input.string("Bottom Right", "Table Position", options=["Bottom Right", "Bottom Left", "Middle Right", "Middle Left", "Top Right", "Top Left", "Top Center", "Bottom Center"], group=group2, inline="fourthLine")
-string textSizeInput =           input.string(    "Normal", "Text Size", options=["Normal", "Large", "Small"], group=group2, inline="fourthLine")
+string textSizeInput =           input.string("Normal", "Text Size", options=["Normal", "Large", "Small"], group=group2, inline="fourthLine")
         
 // Helper function to get the multiplier based on timeframe
 get_tf_multiplier() =>
